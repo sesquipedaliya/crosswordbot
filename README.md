@@ -32,4 +32,3 @@ See the source code for a complete list of these.
 and restart the crossword bot.
 
 3. Validate that the restart was successful.
-# crosswordbot
