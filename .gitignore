@@ -1,3 +1,4 @@
 credentials*.txt
 __pycache__
 venv
+/.idea
