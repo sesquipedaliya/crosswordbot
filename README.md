@@ -10,7 +10,7 @@ adds a customizable reaction emoji.
 export SLACK_OAUTH_APP=<insert app token, begins with xoxp>
 export SLACK_OAUTH_BOT=<insert bot token, begins with xoxb>
 
-python main.py
+python app.py
 ```
 
 You can obtain the tokens through marathon or from a previous crosswordbot contributor.

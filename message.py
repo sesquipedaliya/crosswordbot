@@ -12,10 +12,10 @@ class Message:
         self.orig_message = message
 
         self.time = self.parse_time(self.text)
-        self.isDNF = self.is_dnf(self.text)
-        self.isJoin = self.is_join(message)
-        self.isLeave = self.is_leave(message)
-        self.isNotParsable = not self.time and not self.isDNF and not self.isJoin and not self.isLeave
+        self.is_dnf = self.is_dnf(self.text)
+        self.is_join = self.is_join(message)
+        self.is_leave = self.is_leave(message)
+        self.is_not_parsable = not self.time and not self.is_dnf and not self.is_join and not self.is_leave
 
         self.twin_emoji = None  # initialized in process_reactions
         self.reactions = self.process_reactions(message.get("reactions"), user_service)

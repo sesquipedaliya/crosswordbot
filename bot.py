@@ -4,10 +4,10 @@ from datetime import timedelta
 from itertools import groupby
 from operator import attrgetter
 
-from slack import RTMClient, WebClient
+from slack_sdk import WebClient
 
-from constants import LONGEST_POSSIBLE_TIME, CHECK_EMOJI, CONFUSED_EMOJI, DNF_EMOJI, FORTY_TWO_EMOJI, \
-    FORTY_SEVEN_EMOJI, HONEST_ABE_EMOJI, MIN_EMOJI, SIXTEEN_EMOJI, TWINS_LIST, WAVE_EMOJI, BLEAKLEY_EMOJI
+from constants import LONGEST_POSSIBLE_TIME, CHECK_EMOJI, CONFUSED_EMOJI, DNF_EMOJI, MIN_EMOJI, TWINS_LIST, \
+    JOIN_EMOJI, LEAVE_EMOJI, EQUAL_TO, GREATER_THAN, LESS_THAN
 from environment import Env
 from influx import Reporter
 from message import Message
@@ -17,18 +17,14 @@ from userservice import UserService
 
 class CrosswordBot:
     def __init__(self,
-                 rtm_client: RTMClient,         # responds to new messages; uses bot token
-                 history_client: WebClient,     # looks up past messages; uses app token
-                 responder_client: WebClient,   # reacts to messages; uses bot token
+                 web_client: WebClient,         # responds to new messages; uses bot token
                  days_to_post_compute=1,
                  channel_id=Env.channel_id()):
         self.channel_id = channel_id
         self.messages = list()
 
-        self.rtm_client = rtm_client
-        self.history_client = history_client
-        self.responder_client = responder_client
-        self.users = UserService(responder_client)
+        self.web_client = web_client
+        self.users = UserService(web_client)
         self.reporter = Reporter()
         self.log_init()
 
@@ -65,10 +61,9 @@ class CrosswordBot:
 
     def get_messages(self, curr_date: date):
         start_timestamp, end_timestamp = self.get_start_and_end_timestamp(curr_date)
-
-        response = self.history_client.conversations_history(channel=self.channel_id,
+        response = self.web_client.conversations_history(channel=self.channel_id,
                                                          limit=1000,
-                                                         inclusive=0,
+                                                         inclusive=True,
                                                          oldest=str(start_timestamp),
                                                          latest=str(end_timestamp))
         # todo look back in time for more than 1000 messages
@@ -95,7 +90,7 @@ class CrosswordBot:
     def respond_to_message_with(self, message: Message, emoji):
         try:
             if emoji not in message.reactions:
-                self.responder_client.reactions_add(channel=self.channel_id, timestamp=message.timestamp, name=emoji)
+                self.web_client.reactions_add(channel=self.channel_id, timestamp=message.timestamp, name=emoji)
                 message.reactions.add(emoji)
                 if emoji in TWINS_LIST:
                     message.twin_emoji = emoji
@@ -105,7 +100,7 @@ class CrosswordBot:
 
     def hard_remove_response(self, message, emoji):
         try:
-            self.responder_client.reactions_remove(channel=self.channel_id, timestamp=message.timestamp, name=emoji)
+            self.web_client.reactions_remove(channel=self.channel_id, timestamp=message.timestamp, name=emoji)
         except Exception as e:
             print(e, message, emoji)
             pass
@@ -122,14 +117,14 @@ class CrosswordBot:
             pass
 
     def respond_to_message(self, message: Message, fastest_time):
-        if message.isNotParsable:
+        if message.is_not_parsable:
             print("not parsable", message)
             self.respond_to_message_with(message, CONFUSED_EMOJI)
-        elif message.isJoin:
-            self.respond_to_message_with(message, WAVE_EMOJI)
-        elif message.isLeave:
-            self.respond_to_message_with(message, BLEAKLEY_EMOJI)
-        elif message.isDNF:
+        elif message.is_join:
+            self.respond_to_message_with(message, JOIN_EMOJI)
+        elif message.is_leave:
+            self.respond_to_message_with(message, LEAVE_EMOJI)
+        elif message.is_dnf:
             self.respond_to_message_with(message, DNF_EMOJI)
             self.respond_to_message_with(message, CHECK_EMOJI)
         else:
@@ -138,14 +133,17 @@ class CrosswordBot:
             else:
                 self.respond_to_message_with(message, MIN_EMOJI)
 
-            if message.time == 16:
-                self.respond_to_message_with(message, SIXTEEN_EMOJI)
-            if message.time == 42:
-                self.respond_to_message_with(message, FORTY_TWO_EMOJI)
-            if message.time == 47:
-                self.respond_to_message_with(message, FORTY_SEVEN_EMOJI)
-            if message.time >= 4 * 60:
-                self.respond_to_message_with(message, HONEST_ABE_EMOJI)
+            for time, emoji in EQUAL_TO.items():
+                if message.time == time:
+                    self.respond_to_message_with(message, emoji)
+
+            for time, emoji in GREATER_THAN.items():
+                if message.time >= time:
+                    self.respond_to_message_with(message, emoji)
+
+            for time, emoji in LESS_THAN.items():
+                if message.time <= time:
+                    self.respond_to_message_with(message, emoji)
             self.respond_to_message_with(message, CHECK_EMOJI)
 
     @staticmethod
@@ -193,17 +191,17 @@ class CrosswordBot:
                                  channel_id=self.channel_id)
 
     @staticmethod
-    def is_deleted_message(message_json):
+    def is_deleted_message(message_json) -> bool:
         return message_json.get("subtype") == "message_deleted"
 
     @staticmethod
-    def is_edited_message(message_json):
+    def is_edited_message(message_json) -> bool:
         return message_json.get("subtype") == "message_changed"
 
     def remove_message_by_timestamp(self, timestamp):
         self.messages = [m for m in self.messages if m.timestamp != timestamp]
 
-    def handle_new_message(self, message_json):
+    def is_msg_to_handle(self, message_json) -> bool:
         message_to_add = None
         timestamp_to_delete = None
         if self.is_new_message(message_json):
@@ -240,7 +238,6 @@ class CrosswordBot:
         for m in self.messages:
             print(m)
 
-    def on_message(self, **payload):
-        print(payload['data'])
-        if self.handle_new_message(payload['data']):
+    def respond_to_new_message(self, raw_message):
+        if self.is_msg_to_handle(raw_message):
             self.respond()
