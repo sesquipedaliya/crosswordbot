@@ -1,0 +1,35 @@
+channels:
+  test_channel: C02RKG29M4L
+  prod_channel: C0120L5EV7E
+
+emojis:
+  #  Join and leave emojis
+  join: wave
+  leave: wave
+
+  # General
+  confused: interrobang
+  dnf: scream
+  check_mark: white_check_mark
+  min_time: crown
+
+  # Time equality
+  equal_to:
+    42: milky_way
+    47: potato
+
+  # Time greater than
+  greater_than:
+    240: clock2
+
+  # Time less than
+  less_than:
+    10: bullettrain_front
+
+  # Twins (chosen randomly)
+  twins:
+    - gemini
+    - woman-with-bunny-ears-partying
+    - man-with-bunny-ears-partying
+    - elbow-bump
+    - handshake
